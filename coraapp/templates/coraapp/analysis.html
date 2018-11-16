@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>CORA analytics|Analysis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="" />
+    <meta name="author" content="http://webthemez.com" />
+    <!-- css -->
+    {% load staticfiles %}
+    <link href = "{% static 'css/bootstrap.min.css'  %}" rel="stylesheet" />
+    <link href = "{% static 'css/fancybox/jquery.fancybox.css' %}" rel="stylesheet">
+    <link href = "{% static 'css/flexslider.css' %}" rel="stylesheet" />
+    <link href = "{% static 'css/style.css' %}" rel="stylesheet" />
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+    <script src="https://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+</head>
+<div id="wrapper" class="home-page">
+    <div class="topbar">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="pull-left hidden-xs"><span>Exploratory Data Analysis and Visualization of CORA</span></p>
+                    <p class="pull-right">University of Nebraska at Omaha</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <header>
+        <div class="navbar navbar-default navbar-static-top">
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="{% url 'coraapp:index' %}"><img style="width: 118px; height: 60px" src="{% static 'img/UNO.png' %}" alt="logo"/></a>
+                </div>
+                <div class="navbar-collapse collapse ">
+                    <ul class="nav navbar-nav">
+                        <li class="active"><a href="{% url 'coraapp:index' %}">Home</a></li>
+                        <li><a href="{% url 'coraapp:analysis' %}">Data Analysis</a></li>
+                        <li><a href="{% url 'coraapp:visualization' %}">Visualization</a></li>
+                        <li><a href="{% url 'coraapp:dataStudio_viz' %}">Data Studio Viz</a></li>
+                        <li><a href="{% url 'coraapp:datasource' %}">Data source</a></li>
+                        <li><a href="{% url 'coraapp:about' %}">About Us</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+    <section id="inner-headline">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12">
+                    <h2 class="pageTitle">Data Analysis</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+</div><!-- end header -->
+
+<div class="container">
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <style>
+
+        body {
+            font: 10px sans-serif;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+
+        .dot {
+            stroke: #000;}
+
+        div.tooltip {
+            position: absolute;
+            background-color: white;
+            max-width: 200px;
+            height: auto;
+            padding: 1px;
+            border-style: solid;
+            border-radius: 4px;
+            border-width: 1px;
+            box-shadow: 3px 3px 10px rgba(0, 0, 0, .5);
+            pointer-events: none;}
+
+    </style>
+    <body>
+    <!--The new force directed graph using d3 js v5-->
+    <svg id='viz'></svg>
+    <script src='https://d3js.org/d3.v5.min.js'></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.24.0/d3-legend.min.js"></script>
+    <script>
+        var width = 1000;
+        var height = 800;
+        var color = d3.scaleOrdinal(d3.schemeSet1);
+        // var color = d3.scaleOrdinal(d3.schemeSet3);
+        color(0);
+        color(1);
+        color(2);
+        color(3);
+        color(4);
+        color(5);
+        color(6);
+        color(7);
+        color(8);
+        color(9);
+        color(10);
+
+
+
+        var tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        // d3.json("../forceLink.json/").then(function(graph)
+        d3.json("../sbart/").then(function(graph)
+        {
+
+            var label = {
+                'nodes': [],
+                'links': []
+            };
+
+            graph.nodes.forEach(function(d, i) {
+                label.nodes.push({node: d});
+                label.nodes.push({node: d});
+                label.links.push({
+                    source: i * 2,
+                    target: i * 2 + 1
+                });
+            });
+
+            var labelLayout = d3.forceSimulation(label.nodes)
+                .force("charge", d3.forceManyBody().strength(-50))
+                .force("link", d3.forceLink(label.links).distance(0).strength(2));
+
+            var graphLayout = d3.forceSimulation(graph.nodes)
+                .force("charge", d3.forceManyBody().strength(-1000))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX(width / 2).strength(1))
+                .force("y", d3.forceY(height / 2).strength(1))
+                .force("link", d3.forceLink(graph.links).id(function(d) {return d.id; }).distance(50).strength(1))
+                .on("tick", ticked);
+
+            var adjlist = [];
+
+            graph.links.forEach(function(d) {
+                adjlist[d.source.index + "-" + d.target.index] = true;
+                adjlist[d.target.index + "-" + d.source.index] = true;
+            });
+
+            function neigh(a, b) {
+                return a == b || adjlist[a + "-" + b];
+            }
+
+
+            var svg = d3.select("#viz").attr("width", width).attr("height", height);
+            var container = svg.append("g");
+
+            svg.call(
+                d3.zoom()
+                    .scaleExtent([.1, 4])
+                    .on("zoom", function() { container.attr("transform", d3.event.transform); })
+            );
+
+            var link = container.append("g").attr("class", "links")
+                .selectAll("line")
+                .data(graph.links)
+                .enter()
+                .append("line")
+                .attr("stroke", "#aaa")
+                .attr("stroke-width", "1px");
+
+            var node = container.append("g").attr("class", "nodes")
+                .selectAll("g")
+                .data(graph.nodes)
+                .enter()
+                .append("circle")
+                .attr("r", 5)
+                .attr("fill", function(d) { return color(d.category); })
+
+            node.on("mouseover", focus).on("mouseout", unfocus);
+
+            node.call(
+                d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended)
+            );
+
+            var labelNode = container.append("g").attr("class", "labelNodes")
+                .selectAll("text")
+                .data(label.nodes)
+                .enter()
+                .append("text")
+                .text(function(d, i) { return i % 2 == 0 ? "" : d.node.name; })
+                .style("fill", "#555")
+                .style("font-family", "Arial")
+                .style("font-size", 8)
+                .style("pointer-events", "none"); // to prevent mouseover/drag capture
+
+            node.on("mouseover", focus).on("mouseout", unfocus);
+
+            function ticked() {
+
+                node.call(updateNode);
+                link.call(updateLink);
+
+                labelLayout.alphaTarget(0.3).restart();
+                labelNode.each(function(d, i) {
+                    if(i % 2 == 0) {
+                        d.x = d.node.x;
+                        d.y = d.node.y;
+                    } else {
+                        var b = this.getBBox();
+
+                        var diffX = d.x - d.node.x;
+                        var diffY = d.y - d.node.y;
+
+                        var dist = Math.sqrt(diffX * diffX + diffY * diffY);
+
+                        var shiftX = b.width * (diffX - dist) / (dist * 2);
+                        shiftX = Math.max(-b.width, Math.min(0, shiftX));
+                        var shiftY = 16;
+                        this.setAttribute("transform", "translate(" + shiftX + "," + shiftY + ")");
+                    }
+                });
+                labelNode.call(updateNode);
+
+            }
+
+            function fixna(x) {
+                if (isFinite(x)) return x;
+                return 0;
+            }
+
+            function focus(d) {
+                var index = d3.select(d3.event.target).datum().index;
+                node.style("opacity", function(o) {
+                    return neigh(index, o.index) ? 1 : 0.1;
+                });
+                labelNode.attr("display", function(o) {
+                    return neigh(index, o.node.index) ? "block": "none";
+                });
+                link.style("opacity", function(o) {
+                    return o.source.index == index || o.target.index == index ? 1 : 0.1;
+                });
+            }
+
+            function unfocus() {
+                labelNode.attr("display", "block");
+                node.style("opacity", 1);
+                link.style("opacity", 1);
+            }
+
+            function updateLink(link) {
+                link.attr("x1", function(d) { return fixna(d.source.x); })
+                    .attr("y1", function(d) { return fixna(d.source.y); })
+                    .attr("x2", function(d) { return fixna(d.target.x); })
+                    .attr("y2", function(d) { return fixna(d.target.y); });
+            }
+
+            function updateNode(node) {
+                node.attr("transform", function(d) {
+                    return "translate(" + fixna(d.x) + "," + fixna(d.y) + ")";
+                });
+            }
+
+            function dragstarted(d) {
+                d3.event.sourceEvent.stopPropagation();
+                if (!d3.event.active) graphLayout.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(d) {
+                d.fx = d3.event.x;
+                d.fy = d3.event.y;
+            }
+
+            function dragended(d) {
+                if (!d3.event.active) graphLayout.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+
+
+            var sequentialScale = d3.scaleOrdinal(d3.schemeSet1)
+                .domain(["Other",  "Pelvic Girdle" , "Thoracic Cage", "Lower Extremity","Upper Extremity", "Vertebral Column", "Pectoral Girdle", "Cranial" ]);
+
+
+            svg.append("g")
+                .attr("class", "legendSequential")
+                .attr("transform", "translate("+(width-110)+","+(height-170)+")");
+
+            var legendSequential = d3.legendColor()
+                .shapeWidth(30)
+                .cells(17)
+                .orient("vertical")
+                .title("Group by color:")
+                .titleWidth(100)
+                .scale(sequentialScale)
+
+            svg.select(".legendSequential")
+                .call(legendSequential);
+        }); // d3.json
+    </script>
+    </body>
+</div>
+
+
+{#	<footer style="position: fixed; bottom: 0;">#}
+    <div id="sub-footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="copyright">
+                        <p>
+                            <span>&copy; Data Analysis and Visualization of CORA </span>
+                        </p>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <ul class="social-network">
+                        <li><a href="#" data-placement="top" title="Facebook"><i class="fa fa-facebook"></i></a></li>
+                        <li><a href="#" data-placement="top" title="Twitter"><i class="fa fa-twitter"></i></a></li>
+                        <li><a href="#" data-placement="top" title="Linkedin"><i class="fa fa-linkedin"></i></a></li>
+                        <li><a href="#" data-placement="top" title="Pinterest"><i class="fa fa-pinterest"></i></a></li>
+                        <li><a href="#" data-placement="top" title="Google plus"><i class="fa fa-google-plus"></i></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {#	</footer>#}
+<a href="#" class="scrollup"><i class="fa fa-angle-up active"></i></a>
+<!-- javascript
+    ================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src ="{% static 'js/jquery.js' %}"></script>
+<script src = "{% static 'js/jquery.easing.1.3.js' %}"></script>
+<script src = "{% static 'js/bootstrap.min.js' %}"></script>
+<script src = "{% static 'js/jquery.fancybox.pack.js' %}"></script>
+<script src = "{% static 'js/jquery.fancybox-media.js' %}"></script>
+<script src = "{% static 'js/jquery.flexslider.js' %}"></script>
+<script src = "{% static 'js/animate.js' %}"></script>
+<!-- Vendor Scripts -->
+<script src = "{% static 'js/modernizr.custom.js' %}"></script>
+<script src = "{% static 'js/jquery.isotope.min.js' %}"></script>
+<script src = "{% static 'js/jquery.magnific-popup.min.js' %}"></script>
+<script src = "{% static '/js/animate.js' %}"></script>
+<script src = "{% static 'js/custom.js' %}"></script>
+<script src = "{% static 'js/chart.js' %}" ></script>
+
+
+</html>

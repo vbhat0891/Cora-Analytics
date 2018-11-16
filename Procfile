@@ -1,0 +1,1 @@
+web: gunicorn cora.wsgi --log-file -
